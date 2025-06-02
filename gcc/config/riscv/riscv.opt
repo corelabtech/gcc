@@ -477,6 +477,8 @@ int riscv_sm_subext
 
 Mask(SMRNMI) Var(riscv_sm_subext)
 
+Mask(SMCNTRPMF) Var(riscv_sm_subext)
+
 TargetVariable
 int riscv_ztso_subext
 
