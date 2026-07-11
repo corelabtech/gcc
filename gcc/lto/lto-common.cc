@@ -333,11 +333,7 @@ hash_canonical_type (tree type)
 	    && (! DECL_SIZE (f)
 		|| ! integer_zerop (DECL_SIZE (f))))
 	  {
-	    tree t = TREE_TYPE (f);
-	    if (!TREE_CHAIN (f)
-		&& TREE_CODE (t) == ARRAY_TYPE)
-	      t = TREE_TYPE  (t);
-	    iterative_hash_canonical_type (t, hstate);
+	    iterative_hash_canonical_type (TREE_TYPE (f), hstate);
 	    nf++;
 	  }
 
