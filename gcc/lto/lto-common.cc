@@ -254,8 +254,7 @@ hash_canonical_type (tree type)
      checked.  */
   code = tree_code_for_canonical_type_merging (TREE_CODE (type));
   hstate.add_int (code);
-  if (!RECORD_OR_UNION_TYPE_P (type))
-    hstate.add_int (TYPE_MODE (type));
+  hstate.add_int (TYPE_MODE (type));
 
   /* Incorporate common features of numerical types.  */
   if (INTEGRAL_TYPE_P (type)
