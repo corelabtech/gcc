@@ -500,6 +500,15 @@ int riscv_xventana_subext
 
 Mask(XVENTANACONDOPS) Var(riscv_xventana_subext)
 
+TargetVariable
+int riscv_rvp_subext
+
+Mask(ZPN) Var(riscv_rvp_subext)
+
+Mask(ZBPBO) Var(riscv_rvp_subext)
+
+Mask(ZPSFOPERAND) Var(riscv_rvp_subext)
+
 Enum
 Name(isa_spec_class) Type(enum riscv_isa_spec_class)
 Supported ISA specs (for use with the -misa-spec= option):
@@ -631,3 +640,7 @@ Enum(tls_type) String(desc) Value(TLS_DESCRIPTORS)
 mtls-dialect=
 Target RejectNegative Joined Enum(tls_type) Var(riscv_tls_dialect) Init(TLS_TRADITIONAL) Save
 Specify TLS dialect.
+
+mfast-irq
+Target Var(riscv_fast_irq) Init(0)
+Enable fast interrupt.

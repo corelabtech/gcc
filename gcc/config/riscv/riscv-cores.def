@@ -43,6 +43,8 @@ RISCV_TUNE("thead-c906", generic, thead_c906_tune_info)
 RISCV_TUNE("xiangshan-nanhu", xiangshan, xiangshan_nanhu_tune_info)
 RISCV_TUNE("generic-ooo", generic_ooo, generic_ooo_tune_info)
 RISCV_TUNE("size", generic, optimize_size_tune_info)
+RISCV_TUNE("cl-cypress", cl_cypress, cl_cypress_tune_info)
+RISCV_TUNE("cl-juniper", cl_juniper, cl_juniper_tune_info)
 
 #undef RISCV_TUNE
 
@@ -96,4 +98,8 @@ RISCV_CORE("xiangshan-nanhu",      "rv64imafdc_zba_zbb_zbc_zbs_"
 			      "zbkb_zbkc_zbkx_zknd_zkne_zknh_zksed_zksh_"
 			      "svinval_zicbom_zicboz",
 			      "xiangshan-nanhu")
+
+RISCV_CORE("cl-cypress", "rv32imafdc_zicbom_zicsr_zicntr_zicond_zifencei_zihpm_zcb_zba_zbb_zbc_zbpbo0p911_zbs_zpn0p911",  "cl-cypress")
+RISCV_CORE("cl-juniper", "rv64imafdcv_zicbom_zicsr_zifencei_zcb_zba_zbb_zbc_zbs",  "cl-juniper")
+
 #undef RISCV_CORE

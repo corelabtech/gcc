@@ -194,7 +194,7 @@
 (define_expand "clzsi2"
   [(set (match_operand:SI 0 "register_operand")
 	(clz:SI (match_operand:SI 1 "register_operand")))]
-  "TARGET_ZBB || (!TARGET_64BIT && TARGET_XTHEADBB)")
+  "TARGET_ZBB || (!TARGET_64BIT && TARGET_XTHEADBB) || (!TARGET_64BIT && TARGET_ZBPBO)")
 
 (define_expand "ctz<mode>2"
   [(set (match_operand:GPR 0 "register_operand")
@@ -472,7 +472,7 @@
   [(set (match_operand:X 0 "register_operand" "=r")
         (bswap:X (match_operand:X 1 "register_operand" "r")))]
   "TARGET_ZBB || TARGET_ZBKB"
-  "rev8\t%0,%1"
+  "rev8\t%0, %1"
   [(set_attr "type" "bitmanip")])
 
 ;; HI bswap can be emulated using SI/DI bswap followed

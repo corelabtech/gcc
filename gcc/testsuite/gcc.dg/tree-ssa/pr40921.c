@@ -1,4 +1,5 @@
 /* { dg-do compile } */
+/* { dg-skip-if "" { *-*-* } { "-march=*zpn*" } } */
 /* { dg-options "-O2  -fdump-tree-optimized -ffast-math -ffp-contract=off" } */
 
 unsigned int foo (unsigned int x, unsigned int y, unsigned int z)

@@ -144,6 +144,8 @@ struct GTY(())  riscv_frame_info {
   poly_int64 v_sp_offset_top;
   poly_int64 v_sp_offset_bottom;
 
+  HOST_WIDE_INT min_first_step;
+
   /* Offset of virtual frame pointer from stack pointer/frame bottom */
   poly_int64 frame_pointer_offset;
 
@@ -187,6 +189,22 @@ struct GTY(())  machine_function {
 
   /* True if current function is an interrupt function.  */
   bool interrupt_handler_p;
+
+  /* The CPU supports auto save/restore the caller registers. */
+  bool support_auto_stacking;
+
+  /* Enable conditional scratch swap on priv mode change. */
+  bool enable_csw;
+
+  /* Enable conditional scratch swap on level change. */
+  bool enable_cswl;
+
+  /* Don't Save/Restore CSRs for interrupt handler. */
+  bool disable_csr_backup;
+
+  /* Don't set/clear mstatus.mie for interrupt handler. */
+  bool skip_mie;
+
   /* For an interrupt handler, indicates the privilege level.  */
   enum riscv_privilege_levels interrupt_mode;
 
@@ -515,6 +533,40 @@ static const struct riscv_tune_param xiangshan_nanhu_tune_info = {
   NULL,						/* vector cost */
 };
 
+/* Costs to use when optimizing for CoreLab Cypress.  */
+static const struct riscv_tune_param cl_cypress_tune_info = {
+  {COSTS_N_INSNS (2), COSTS_N_INSNS (2)},      /* fp_add */
+  {COSTS_N_INSNS (2), COSTS_N_INSNS (4)},      /* fp_mul */
+  {COSTS_N_INSNS (9), COSTS_N_INSNS (22)},     /* fp_div */
+  {COSTS_N_INSNS (2), COSTS_N_INSNS (2)},      /* int_mul */
+  {COSTS_N_INSNS (2), COSTS_N_INSNS (6)},      /* int_div */
+  2,                                           /* issue_rate */
+  1,                                           /* branch_cost */
+  2,                                           /* memory_cost */
+  2,                                           /* fmv_cost */
+  true,                                        /* slow_unaligned_access */
+  false,                                       /* use_divmod_expansion */
+  RISCV_FUSE_ZEXTW | RISCV_FUSE_ZEXTH,         /* fusible_ops */
+  NULL,                                        /* vector cost */
+};
+
+/* Costs to use when optimizing for CoreLab Juniper.  */
+static const struct riscv_tune_param cl_juniper_tune_info = {
+  {COSTS_N_INSNS (2), COSTS_N_INSNS (2)},      /* fp_add */
+  {COSTS_N_INSNS (2), COSTS_N_INSNS (4)},      /* fp_mul */
+  {COSTS_N_INSNS (9), COSTS_N_INSNS (22)},     /* fp_div */
+  {COSTS_N_INSNS (2), COSTS_N_INSNS (2)},      /* int_mul */
+  {COSTS_N_INSNS (2), COSTS_N_INSNS (6)},      /* int_div */
+  2,                                           /* issue_rate */
+  1,                                           /* branch_cost */
+  2,                                           /* memory_cost */
+  2,                                           /* fmv_cost */
+  true,                                        /* slow_unaligned_access */
+  false,                                       /* use_divmod_expansion */
+  RISCV_FUSE_ZEXTW | RISCV_FUSE_ZEXTH,         /* fusible_ops */
+  NULL,                                        /* vector cost */
+};
+
 /* Costs to use when optimizing for a generic ooo profile.  */
 static const struct riscv_tune_param generic_ooo_tune_info = {
   {COSTS_N_INSNS (2), COSTS_N_INSNS (2)},	/* fp_add */
@@ -587,6 +639,22 @@ static const attribute_spec riscv_gnu_attributes[] =
      types.  */
   {"riscv_rvv_vector_bits", 1, 1, false, true, false, true,
    riscv_handle_rvv_vector_bits_attribute, NULL},
+
+  /* This attribute generates prologue/epilogue for sp swapping.  */
+  {"riscv_csw", 0, 0, true, false, false, false, riscv_handle_fndecl_attribute,
+   NULL},
+
+  /* This attribute generates prologue/epilogue for sp swapping.  */
+  {"riscv_cswl", 0, 0, true, false, false, false, riscv_handle_fndecl_attribute,
+   NULL},
+
+  /* This attribute skips the CSR save/restore in interrupt handler. */
+  {"riscv_disable_csr_backup", 0, 0, true, false, false, false, riscv_handle_fndecl_attribute,
+   NULL},
+
+  /* This attribute skips the mstatus.mie clear/set in interrupt handler. */
+  {"riscv_skip_mie", 0, 0, true, false, false, false, riscv_handle_fndecl_attribute,
+   NULL},
 };
 
 static const scoped_attribute_specs riscv_gnu_attribute_table  =
@@ -1437,6 +1505,10 @@ riscv_v_ext_vector_mode_p (machine_mode mode)
 #define ENTRY(MODE, REQUIREMENT, ...)                                          \
   case MODE##mode:                                                             \
     return REQUIREMENT;
+
+  if (riscv_rvp_support_vector_mode_p (mode))
+    return false;
+
   switch (mode)
     {
 #include "riscv-vector-switch.def"
@@ -4096,10 +4168,22 @@ riscv_output_return ()
   if (cfun->machine->naked_p)
     return "";
 
+  if (cfun->machine->interrupt_handler_p)
+  {
+    enum riscv_privilege_levels mode = cfun->machine->interrupt_mode;
+
+    gcc_assert (mode != UNKNOWN_MODE);
+
+    if (mode == MACHINE_MODE)
+      return "mret";
+    else if (mode == SUPERVISOR_MODE)
+      return "sret";
+    else
+      return "uret";
+  }
   return "ret";
 }
 
-
 /* Return true if CMP1 is a suitable second operand for integer ordering
    test CODE.  See also the *sCC patterns in riscv.md.  */
 
@@ -4921,9 +5005,9 @@ riscv_flatten_aggregate_field (const_tree type,
     default:
       if (n < 2
 	  && ((SCALAR_FLOAT_TYPE_P (type)
-	       && GET_MODE_SIZE (TYPE_MODE (type)).to_constant () <= UNITS_PER_FP_ARG)
+	       && (GET_MODE_SIZE (TYPE_MODE (type)).to_constant () <= UNITS_PER_FP_ARG))
 	      || (INTEGRAL_TYPE_P (type)
-		  && GET_MODE_SIZE (TYPE_MODE (type)).to_constant () <= UNITS_PER_WORD)))
+		  && (GET_MODE_SIZE (TYPE_MODE (type)).to_constant () <= UNITS_PER_WORD))))
 	{
 	  fields[n].type = type;
 	  fields[n].offset = offset;
@@ -5314,7 +5398,7 @@ riscv_get_arg_info (struct riscv_arg_info *info, const CUMULATIVE_ARGS *cum,
     }
 
   /* Work out the size of the argument.  */
-  num_bytes = type ? int_size_in_bytes (type) : GET_MODE_SIZE (mode).to_constant ();
+  num_bytes = (type ? int_size_in_bytes (type) : GET_MODE_SIZE (mode).to_constant ());
   num_words = (num_bytes + UNITS_PER_WORD - 1) / UNITS_PER_WORD;
 
   /* Doubleword-aligned varargs start on an even register boundary.  */
@@ -5789,6 +5873,17 @@ riscv_handle_fndecl_attribute (tree *node, tree name,
   return NULL_TREE;
 }
 
+/* Whether the cpu supports auto load/store caller registers. */
+
+template <class T>
+static bool riscv_is_auto_stacking_supported (const T *opts)
+{
+  if (opts->x_riscv_cpu_string)
+    return (!strcmp(opts->x_riscv_cpu_string, "cl-cypress") ||
+	    !strcmp(opts->x_riscv_cpu_string, "cl-juniper")) ? true : false;
+  return false;
+}
+
 /* Verify type based attributes.  NODE is the what the attribute is being
    applied to.  NAME is the attribute name.  ARGS are the attribute args.
    FLAGS gives info about the context.  NO_ADD_ATTRS should be set to true if
@@ -5820,8 +5915,11 @@ riscv_handle_type_attribute (tree *node ATTRIBUTE_UNUSED, tree name, tree args,
 	      && strcmp (string, "machine"))
 	    {
 	      warning (OPT_Wattributes,
-		       "argument to %qE attribute is not %<\"user\"%>, %<\"supervisor\"%>, "
-		       "or %<\"machine\"%>", name);
+		       "argument to %qE attribute is not \"user\", \"supervisor\", or \"machine\"", name);
+	      *no_add_attrs = true;
+	    } else if (riscv_fast_irq && !riscv_is_auto_stacking_supported(&global_options)) {
+	      // Doesn't support fast interrupt
+	      error ("Fast interrupt is not supported with this CPU!");
 	      *no_add_attrs = true;
 	    }
 	}
@@ -6668,11 +6766,19 @@ riscv_save_reg_p (unsigned int regno)
   if (regno == HARD_FRAME_POINTER_REGNUM && frame_pointer_needed)
     return true;
 
+  enum riscv_privilege_levels mode = cfun->machine->interrupt_mode;
+
+  /* Don't save x1/ra register for fast interrupt. */
+  if (regno == RETURN_ADDR_REGNUM && cfun->machine->interrupt_handler_p
+      && cfun->machine->support_auto_stacking && riscv_fast_irq)
+    return false;
+
   if (regno == RETURN_ADDR_REGNUM && riscv_save_return_addr_reg_p ())
     return true;
 
-  /* If this is an interrupt handler, then must save extra registers.  */
-  if (cfun->machine->interrupt_handler_p)
+  /* If this is an interrupt handler, and auto stacking is NOT supported or in register save-restore mode,
+     then must save extra registers.  */
+  if (cfun->machine->interrupt_handler_p && (!cfun->machine->support_auto_stacking || !riscv_fast_irq))
     {
       /* zero register is always zero.  */
       if (regno == GP_REG_FIRST)
@@ -6874,9 +6980,14 @@ riscv_compute_frame_info (void)
      2, Need to save and restore some CSRs in the frame.  */
   if (cfun->machine->interrupt_handler_p)
     {
+      bool auto_stacking = false;
+      if (cfun->machine->support_auto_stacking && riscv_fast_irq)
+	{
+	  auto_stacking = true;
+	}
       HOST_WIDE_INT step1 = riscv_first_stack_step (frame, frame->total_size);
       if (! POLY_SMALL_OPERAND_P ((frame->total_size - step1))
-	  || (TARGET_HARD_FLOAT || TARGET_ZFINX))
+	  || ((TARGET_HARD_FLOAT || TARGET_ZFINX) && !auto_stacking))
 	interrupt_save_prologue_temp = true;
     }
 
@@ -6884,10 +6995,17 @@ riscv_compute_frame_info (void)
 
   if (!cfun->machine->naked_p)
     {
+      /* Find out which FPRs we need to save.  This loop must iterate over
+	 the same space as its companion in riscv_for_each_saved_reg.  */
+      if (TARGET_HARD_FLOAT)
+	for (regno = FP_REG_FIRST; regno <= FP_REG_LAST; regno++)
+	  if (riscv_save_reg_p (regno))
+	    frame->fmask |= 1 << (regno - FP_REG_FIRST), num_f_saved++;
+
       /* Find out which GPRs we need to save.  */
       for (regno = GP_REG_FIRST; regno <= GP_REG_LAST; regno++)
 	if (riscv_save_reg_p (regno)
-	    || (interrupt_save_prologue_temp
+	    || (interrupt_save_prologue_temp && frame->fmask
 		&& (regno == RISCV_PROLOGUE_TEMP_REGNUM)))
 	  frame->mask |= 1 << (regno - GP_REG_FIRST), num_x_saved++;
 
@@ -6896,13 +7014,6 @@ riscv_compute_frame_info (void)
       if (crtl->calls_eh_return)
 	for (i = 0; (regno = EH_RETURN_DATA_REGNO (i)) != INVALID_REGNUM; i++)
 	  frame->mask |= 1 << (regno - GP_REG_FIRST), num_x_saved++;
-
-      /* Find out which FPRs we need to save.  This loop must iterate over
-	 the same space as its companion in riscv_for_each_saved_reg.  */
-      if (TARGET_HARD_FLOAT)
-	for (regno = FP_REG_FIRST; regno <= FP_REG_LAST; regno++)
-	  if (riscv_save_reg_p (regno))
-	    frame->fmask |= 1 << (regno - FP_REG_FIRST), num_f_saved++;
 
       /* Find out which V registers we need to save. */
       if (TARGET_VECTOR)
@@ -6922,7 +7033,7 @@ riscv_compute_frame_info (void)
       unsigned num_save_restore = 1 + riscv_save_libcall_count (frame->mask);
       /* Only use save/restore routines if they don't alter the stack size.  */
       if (riscv_stack_align (num_save_restore * UNITS_PER_WORD) == x_save_size
-          && !riscv_avoid_save_libcall ())
+	  && !riscv_avoid_save_libcall ())
 	{
 	  /* Libcall saves/restores 3 registers at once, so we need to
 	     allocate 12 bytes for callee-saved register.  */
@@ -6941,6 +7052,7 @@ riscv_compute_frame_info (void)
 	}
     }
 
+  int num_csr_saved = 0;
   /* In an interrupt function, we need extra space for the initial saves of CSRs.  */
   if (cfun->machine->interrupt_handler_p
       && ((TARGET_HARD_FLOAT && frame->fmask)
@@ -6950,13 +7062,23 @@ riscv_compute_frame_info (void)
     /* Save and restore FCSR.  */
     /* TODO: When P or V extensions support interrupts, some of their CSRs
        may also need to be saved and restored.  */
-    x_save_size += riscv_stack_align (1 * UNITS_PER_WORD);
+    num_csr_saved++;
+  // Save mepc/mcause/mexinfo for non-fast interrupt
+  if (cfun->machine->interrupt_handler_p && cfun->machine->support_auto_stacking
+      && !cfun->machine->disable_csr_backup)
+    {
+      if (!riscv_fast_irq && (frame->mask | frame->fmask))
+	{
+	  frame->mask |= (1 << (RISCV_PROLOGUE_TEMP_REGNUM - GP_REG_FIRST));
+	  num_csr_saved += 3;
+	}
+    }
 
+  x_save_size += riscv_stack_align (num_csr_saved * UNITS_PER_WORD);
   /* At the bottom of the frame are any outgoing stack arguments. */
   offset = riscv_stack_align (crtl->outgoing_args_size);
   /* Next are local stack variables. */
   offset += riscv_stack_align (get_frame_size ());
-  /* The virtual frame pointer points above the local variables. */
   frame->frame_pointer_offset = offset;
   /* Next are the callee-saved VRs.  */
   if (frame->vmask)
@@ -7151,6 +7273,45 @@ riscv_is_eh_return_data_register (unsigned int regno)
   return false;
 }
 
+/* Save/Restore additional CSRs for interrupt, and enable/disable interrupt. */
+static HOST_WIDE_INT
+riscv_save_restore_csr_for_interrupt(bool epilogue, HOST_WIDE_INT offset)
+{
+  HOST_WIDE_INT origin_offset = offset;
+  unsigned int csr_size = UNITS_PER_WORD;
+  if (!epilogue)
+    {
+      emit_insn (gen_riscv_read_mepc (RISCV_PROLOGUE_TEMP (SImode)));
+      riscv_save_restore_reg (SImode, RISCV_PROLOGUE_TEMP_REGNUM, offset, riscv_save_reg);
+      offset -= csr_size;
+      emit_insn (gen_riscv_read_mcause (RISCV_PROLOGUE_TEMP (SImode)));
+      riscv_save_restore_reg (SImode, RISCV_PROLOGUE_TEMP_REGNUM, offset, riscv_save_reg);
+      offset -= csr_size;
+      emit_insn (gen_riscv_read_mexinfo (RISCV_PROLOGUE_TEMP (SImode)));
+      riscv_save_restore_reg (SImode, RISCV_PROLOGUE_TEMP_REGNUM, offset, riscv_save_reg);
+      if (!cfun->machine->skip_mie)
+	{
+	  emit_insn (gen_riscv_set_mie (RISCV_PROLOGUE_TEMP (SImode)));
+	}
+    }
+  else
+    {
+      if (!cfun->machine->skip_mie)
+	{
+	  emit_insn (gen_riscv_clear_mie (RISCV_PROLOGUE_TEMP (SImode)));
+	}
+      riscv_save_restore_reg (SImode, RISCV_PROLOGUE_TEMP_REGNUM, offset, riscv_restore_reg);
+      emit_insn (gen_riscv_write_mepc (RISCV_PROLOGUE_TEMP (SImode)));
+      offset -= csr_size;
+      riscv_save_restore_reg (SImode, RISCV_PROLOGUE_TEMP_REGNUM, offset, riscv_restore_reg);
+      emit_insn (gen_riscv_write_mcause (RISCV_PROLOGUE_TEMP (SImode)));
+      offset -= csr_size;
+      riscv_save_restore_reg (SImode, RISCV_PROLOGUE_TEMP_REGNUM, offset, riscv_restore_reg);
+      emit_insn (gen_riscv_write_mexinfo (RISCV_PROLOGUE_TEMP (SImode)));
+    }
+  return origin_offset - offset;
+}
+
 /* Call FN for each register that is saved by the current function.
    SP_OFFSET is the offset of the current stack pointer from the start
    of the frame.  */
@@ -7183,10 +7344,15 @@ riscv_for_each_saved_reg (poly_int64 sp_offset, riscv_save_restore_fn fn,
 	  && riscv_is_eh_return_data_register (regno))
 	continue;
 
+      bool auto_stacking = false;
+      if (cfun->machine->support_auto_stacking && riscv_fast_irq)
+	{
+	  auto_stacking = true;
+	}
       /* In an interrupt function, save and restore some necessary CSRs in the stack
 	 to avoid changes in CSRs.  */
       if (regno == RISCV_PROLOGUE_TEMP_REGNUM
-	  && cfun->machine->interrupt_handler_p
+	  && cfun->machine->interrupt_handler_p && !auto_stacking
 	  && ((TARGET_HARD_FLOAT  && cfun->machine->frame.fmask)
 	      || (TARGET_ZFINX
 		  && (cfun->machine->frame.mask & ~(1 << RISCV_PROLOGUE_TEMP_REGNUM)))))
@@ -7201,14 +7367,50 @@ riscv_for_each_saved_reg (poly_int64 sp_offset, riscv_save_restore_fn fn,
 	      emit_insn (gen_riscv_frcsr (RISCV_PROLOGUE_TEMP (SImode)));
 	      riscv_save_restore_reg (SImode, RISCV_PROLOGUE_TEMP_REGNUM,
 				      offset, riscv_save_reg);
+	      if (cfun->machine->support_auto_stacking && !riscv_fast_irq && !cfun->machine->disable_csr_backup)
+	      {
+		offset -= fcsr_size;
+		HOST_WIDE_INT used_size = riscv_save_restore_csr_for_interrupt(epilogue, offset);
+		offset -= used_size;
+	      }
 	    }
 	  else
 	    {
-	      riscv_save_restore_reg (SImode, RISCV_PROLOGUE_TEMP_REGNUM,
-				      offset - fcsr_size, riscv_restore_reg);
-	      emit_insn (gen_riscv_fscsr (RISCV_PROLOGUE_TEMP (SImode)));
-	      riscv_save_restore_reg (word_mode, regno, offset, fn);
+	      HOST_WIDE_INT origin_offset = offset;
 	      offset -= fcsr_size;
+	      riscv_save_restore_reg (SImode, RISCV_PROLOGUE_TEMP_REGNUM,
+				      offset, riscv_restore_reg);
+	      emit_insn (gen_riscv_fscsr (RISCV_PROLOGUE_TEMP (SImode)));
+	      if (cfun->machine->support_auto_stacking && !riscv_fast_irq && !cfun->machine->disable_csr_backup)
+	      {
+		offset -= fcsr_size;
+		HOST_WIDE_INT used_size = riscv_save_restore_csr_for_interrupt(epilogue, offset);
+		offset -= used_size;
+	      }
+	      riscv_save_restore_reg (word_mode, regno, origin_offset, fn);
+	    }
+	  continue;
+	}
+      else if (regno == RISCV_PROLOGUE_TEMP_REGNUM
+	       && cfun->machine->interrupt_handler_p && !cfun->machine->disable_csr_backup
+	       && cfun->machine->support_auto_stacking && !riscv_fast_irq
+	       && (cfun->machine->frame.mask & (1 << (RISCV_PROLOGUE_TEMP_REGNUM - GP_REG_FIRST))))
+	{
+	  unsigned int csr_size = UNITS_PER_WORD;
+	  if (!epilogue)
+	    {
+	      riscv_save_restore_reg (word_mode, regno, offset, fn);
+	      offset -= csr_size;
+	      HOST_WIDE_INT used_size = riscv_save_restore_csr_for_interrupt(epilogue, offset);
+	      offset -= used_size;
+	    }
+	  else
+	    {
+	      HOST_WIDE_INT origin_offset = offset;
+	      offset -= csr_size;
+	      HOST_WIDE_INT used_size = riscv_save_restore_csr_for_interrupt(epilogue, offset);
+	      offset -= used_size;
+	      riscv_save_restore_reg (word_mode, regno, origin_offset, fn);
 	    }
 	  continue;
 	}
@@ -7638,6 +7840,12 @@ riscv_expand_prologue (void)
     {
       if (known_gt (remaining_size, frame->frame_pointer_offset))
 	{
+	  if (cfun->machine->interrupt_handler_p && (cfun->machine->enable_csw || cfun->machine->enable_cswl))
+	    {
+	      bool a = !riscv_fast_irq;
+	      bool b = cfun->machine->enable_cswl;
+	      emit_insn (gen_riscv_csw (stack_pointer_rtx, stack_pointer_rtx, GEN_INT(a), GEN_INT(b)));
+	    }
 	  HOST_WIDE_INT step1 = riscv_first_stack_step (frame, remaining_size);
 	  remaining_size -= step1;
 	  insn = gen_add3_insn (stack_pointer_rtx, stack_pointer_rtx,
@@ -7829,6 +8037,7 @@ riscv_expand_epilogue (int style)
   /* We need to add memory barrier to prevent read from deallocated stack.  */
   bool need_barrier_p = known_ne (get_frame_size ()
 				  + cfun->machine->frame.arg_pointer_offset, 0);
+  bool sp_adjusted = false;
 
   if (cfun->machine->naked_p)
     {
@@ -7964,6 +8173,7 @@ riscv_expand_epilogue (int style)
 	  RTX_FRAME_RELATED_P (insn) = 1;
 
 	  REG_NOTES (insn) = dwarf;
+	  sp_adjusted = true;
 	}
     }
   else if (frame_pointer_needed)
@@ -8032,6 +8242,7 @@ riscv_expand_epilogue (int style)
       RTX_FRAME_RELATED_P (insn) = 1;
 
       REG_NOTES (insn) = dwarf;
+      sp_adjusted = true;
     }
 
   if (use_multi_pop)
@@ -8064,8 +8275,11 @@ riscv_expand_epilogue (int style)
 
   /* Add in the __builtin_eh_return stack adjustment. */
   if ((style == EXCEPTION_RETURN) && crtl->calls_eh_return)
-    emit_insn (gen_add3_insn (stack_pointer_rtx, stack_pointer_rtx,
-			      EH_RETURN_STACKADJ_RTX));
+    {
+      emit_insn (gen_add3_insn (stack_pointer_rtx, stack_pointer_rtx,
+				EH_RETURN_STACKADJ_RTX));
+      sp_adjusted = true;
+    }
 
   /* Return from interrupt.  */
   if (cfun->machine->interrupt_handler_p)
@@ -8073,6 +8287,12 @@ riscv_expand_epilogue (int style)
       enum riscv_privilege_levels mode = cfun->machine->interrupt_mode;
 
       gcc_assert (mode != UNKNOWN_MODE);
+      if (sp_adjusted && (cfun->machine->enable_csw || cfun->machine->enable_cswl))
+	{
+	  bool a = !riscv_fast_irq;
+	  bool b = cfun->machine->enable_cswl;
+	  emit_insn (gen_riscv_csw (stack_pointer_rtx, stack_pointer_rtx, GEN_INT(a), GEN_INT(b)));
+	}
 
       if (th_int_mask && TH_INT_INTERRUPT (cfun))
 	emit_jump_insn (gen_th_int_pop ());
@@ -8458,6 +8678,18 @@ riscv_hard_regno_nregs (unsigned int regno, machine_mode mode)
   return (GET_MODE_SIZE (mode).to_constant () + UNITS_PER_WORD - 1) / UNITS_PER_WORD;
 }
 
+bool
+riscv_rvp_support_vector_mode_p (machine_mode mode)
+{
+  if (mode == RVPV2HImode || mode == RVPV4QImode)
+	  return true;
+
+  if (TARGET_64BIT && (mode == RVPV8QImode || mode == RVPV4HImode || mode == RVPV2SImode))
+	  return true;
+
+  return false;
+}
+
 /* Implement TARGET_HARD_REGNO_MODE_OK.  */
 
 static bool
@@ -8467,10 +8699,10 @@ riscv_hard_regno_mode_ok (unsigned int regno, machine_mode mode)
 
   if (GP_REG_P (regno))
     {
-      if (riscv_v_ext_mode_p (mode))
+      if (riscv_v_ext_mode_p (mode) && !(TARGET_ZPN && riscv_rvp_support_vector_mode_p (mode)))
 	return false;
 
-      if (!GP_REG_P (regno + nregs - 1))
+      if (!GP_REG_P (regno + nregs - 1)  && !(TARGET_ZPN && riscv_rvp_support_vector_mode_p (mode)))
 	return false;
     }
   else if (FP_REG_P (regno))
@@ -8522,6 +8754,15 @@ riscv_hard_regno_mode_ok (unsigned int regno, machine_mode mode)
      GET_MODE_UNIT_SIZE (mode) == GET_MODE_SIZE (DFmode))
     return !(regno & 1);
   }
+
+  /* use even/odd pair of registers in rv32 zpsf subset */
+  if (TARGET_ZPSFOPERAND && !TARGET_64BIT)
+    {
+      if ((GET_MODE_CLASS (mode) == MODE_INT ||
+	  GET_MODE_CLASS (mode) == MODE_VECTOR_INT) &&
+	  GET_MODE_UNIT_SIZE (mode) == GET_MODE_SIZE (DImode))
+	return !(regno & 1);
+    }
 
   return true;
 }
@@ -8598,9 +8839,11 @@ riscv_sched_variable_issue (FILE *, int, rtx_insn *insn, int more)
      an assert so we can find and fix this problem.  */
   gcc_assert (get_attr_type (insn) != TYPE_UNKNOWN);
 
+#if 0
   /* If we ever encounter an insn without an insn reservation, trip
      an assert so we can find and fix this problem.  */
   gcc_assert (insn_has_dfa_reservation_p (insn));
+#endif
 
   return more - 1;
 }
@@ -9704,6 +9947,16 @@ riscv_get_interrupt_type (tree decl)
     return MACHINE_MODE;
 }
 
+/* Return true if FUNC enables specific attribute.  */
+static bool
+riscv_has_attribute_p (tree func, const char *attr)
+{
+  tree func_decl = func;
+  if (func == NULL_TREE)
+    func_decl = current_function_decl;
+  return NULL_TREE != lookup_attribute (attr, DECL_ATTRIBUTES (func_decl));
+}
+
 /* Implement `TARGET_SET_CURRENT_FUNCTION'.  Unpack the codegen decisions
    like tuning and ISA features from the DECL_FUNCTION_SPECIFIC_TARGET
    of the function, if such exists.  This function may be called multiple
@@ -9723,8 +9976,10 @@ riscv_set_current_function (tree decl)
   if (!cfun->machine->attributes_checked_p)
     {
       cfun->machine->naked_p = riscv_naked_function_p (decl);
-      cfun->machine->interrupt_handler_p
-	= riscv_interrupt_type_p (TREE_TYPE (decl));
+      cfun->machine->interrupt_handler_p =
+	riscv_interrupt_type_p (TREE_TYPE (decl));
+      cfun->machine->support_auto_stacking =
+	riscv_is_auto_stacking_supported(&global_options);
 
       if (cfun->machine->naked_p && cfun->machine->interrupt_handler_p)
 	error ("function attributes %qs and %qs are mutually exclusive",
@@ -9742,8 +9997,36 @@ riscv_set_current_function (tree decl)
 	    error ("%qs function cannot have arguments", "interrupt");
 
 	  cfun->machine->interrupt_mode = riscv_get_interrupt_type (decl);
-
 	  gcc_assert (cfun->machine->interrupt_mode != UNKNOWN_MODE);
+	  cfun->machine->enable_csw     = riscv_has_attribute_p(decl, "riscv_csw");
+	  cfun->machine->enable_cswl    = riscv_has_attribute_p(decl, "riscv_cswl");
+	  if (cfun->machine->enable_csw || cfun->machine->enable_cswl)
+	    {
+	      if (riscv_fast_irq)
+		{
+		  warning (OPT_Wattributes, "\"riscv_csw/riscv_cswl\" are not supported with fast interrupt, skip\n");
+		  cfun->machine->enable_csw = false;
+		  cfun->machine->enable_cswl = false;
+		}
+	    }
+	  cfun->machine->disable_csr_backup = false;
+	  if (riscv_has_attribute_p(decl, "riscv_disable_csr_backup"))
+	    {
+	      if (riscv_fast_irq)
+		{
+		  warning (OPT_Wattributes, "\"riscv_disable_csr_backup\" is not supported with fast interrupt, skip\n");
+		}
+	      cfun->machine->disable_csr_backup = true;
+	    }
+	  cfun->machine->skip_mie = false;
+	  if (riscv_has_attribute_p(decl, "riscv_skip_mie"))
+	    {
+	      if (riscv_fast_irq)
+		{
+		  warning (OPT_Wattributes, "\"riscv_skip_mie\" is not supported with fast interrupt, skip\n");
+		}
+	      cfun->machine->skip_mie = true;
+	    }
 	}
 
       /* Don't print the above diagnostics more than once.  */
@@ -10166,6 +10449,16 @@ riscv_vector_mode_supported_p (machine_mode mode)
   if (TARGET_VECTOR)
     return riscv_v_ext_mode_p (mode);
 
+  if (TARGET_ZPN && riscv_rvp_support_vector_mode_p (mode))
+    return true;
+
+  if ((mode == V16QImode
+      || mode == V8HImode
+      || mode == V4SImode
+      || mode == V2DImode)
+      && TARGET_64BIT)
+    return false;
+
   return false;
 }
 
@@ -10453,7 +10746,20 @@ riscv_preferred_simd_mode (scalar_mode mode)
   if (TARGET_VECTOR && !TARGET_XTHEADVECTOR)
     return riscv_vector::preferred_simd_mode (mode);
 
-  return word_mode;
+  if (!TARGET_ZPN)
+   return word_mode;
+
+  switch (mode)
+    {
+    case E_QImode:
+      return TARGET_64BIT ? RVPV8QImode : RVPV4QImode;
+    case E_HImode:
+      return TARGET_64BIT ? RVPV4HImode : RVPV2HImode;
+    case E_SImode:
+      return TARGET_64BIT ? RVPV2SImode : word_mode;
+    default:
+      return word_mode;
+    }
 }
 
 /* Implement target hook TARGET_VECTORIZE_PREFERRED_VECTOR_ALIGNMENT.  */
@@ -10996,11 +11302,21 @@ extract_base_offset_in_addr (rtx mem, rtx *base, rtx *offset)
 /* Implements target hook vector_mode_supported_any_target_p.  */
 
 static bool
-riscv_vector_mode_supported_any_target_p (machine_mode)
+riscv_vector_mode_supported_any_target_p (machine_mode mode)
 {
   if (TARGET_XTHEADVECTOR)
     return false;
-  return true;
+
+  if (mode == RVPV4QImode || mode == RVPV2HImode)
+    return TARGET_ZPN && !TARGET_64BIT && !TARGET_VECTOR;
+
+  if (mode == RVPV8QImode || mode == RVPV4HImode || mode == RVPV2SImode)
+    return TARGET_ZPN && TARGET_64BIT && !TARGET_VECTOR;
+
+  if (TARGET_VECTOR)
+    return riscv_v_ext_mode_p (mode);
+
+  return false;
 }
 
 /* Implements hook TARGET_FUNCTION_VALUE_REGNO_P.  */

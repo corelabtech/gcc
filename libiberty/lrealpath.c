@@ -199,6 +199,33 @@ char* get_final_path_name(HANDLE fh) {
 # endif // _WIN32
 #endif
 
+#if defined (_WIN32)
+/* Get the real path for an input, remove the ../ in the path */
+static char *get_real_path(const char *input)
+{
+  char *ret = strdup(input);
+  /* Find out all of "../" substrings */
+  char *sub = strstr(ret, "../");
+  while (sub) {
+    int offset = sub - ret - 1;
+    /* Find the parent directory for the "../" */
+    while (offset >= 0 && ret[offset] == '/') {
+      offset--;
+    }
+    for (int i = offset; i >= 0; i--) {
+      if (ret[i] == '/') {
+	int len = strlen(sub);
+    /* Copy the substring to parent directory including '\0' */
+	memmove(&ret[i + 1], &sub[3], len - 2);
+	break;
+      }
+    }
+    sub = strstr(ret, "../");
+  }
+  return ret;
+}
+#endif
+
 char *
 lrealpath (const char *filename)
 {
@@ -300,6 +327,13 @@ lrealpath (const char *filename)
 
 #endif // _WIN32_WINNT >= 0x0600
 
+    if (res) {
+      int len = strlen(res);
+      if (len >= 260 && len == strlen(filename)) {
+	free(res);
+	res = get_real_path(filename);
+      }
+    }
     return res;
   }
 #endif // _WIN32

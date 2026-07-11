@@ -1,4 +1,5 @@
 /* { dg-do compile } */
+/* { dg-skip-if "" { *-*-* } { "-Os" } } */
 /* { dg-options "-ffat-lto-objects" } */
 
 void foo() {

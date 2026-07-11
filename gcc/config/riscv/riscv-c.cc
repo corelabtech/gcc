@@ -223,6 +223,10 @@ riscv_cpu_cpp_builtins (cpp_reader *pfile)
   /* Define architecture extension test macros.  */
   builtin_define_with_int_value ("__riscv_arch_test", 1);
 
+  if (riscv_fast_irq) {
+    builtin_define ("__riscv_fast_irq");
+  }
+
   const riscv_subset_list *subset_list = riscv_cmdline_subset_list ();
   if (!subset_list)
     return;

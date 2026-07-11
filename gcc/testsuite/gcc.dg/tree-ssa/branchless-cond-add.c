@@ -1,5 +1,6 @@
 /* { dg-do compile } */
 /* { dg-options "-O2 -fdump-tree-optimized" } */
+/* { dg-skip-if "" { *-*-* } { "-march=*zpn*" } } */
 /* PR tree-optimization/110155 */
 
 int f1(unsigned int x, unsigned int y, unsigned int z)

@@ -45,6 +45,11 @@
   (and (match_code "const_int")
        (match_test "ival == 0")))
 
+(define_constraint "c00"
+  "Constant value 0."
+  (and (match_code "const_int")
+       (match_test "ival == 0")))
+
 (define_constraint "c01"
   "Constant value 1."
   (and (match_code "const_int")
@@ -69,6 +74,16 @@
   "Constant value 8"
   (and (match_code "const_int")
        (match_test "ival == 8")))
+
+(define_constraint "c15"
+  "Constant value 15"
+  (and (match_code "const_int")
+       (match_test "ival == 15")))
+
+(define_constraint "c16"
+  "Constant value 16"
+  (and (match_code "const_int")
+       (match_test "ival == 16")))
 
 (define_constraint "K"
   "A 5-bit unsigned immediate for CSR access instructions."
@@ -236,6 +251,42 @@
    A MEM with a valid address for th.[l|s]*ur* instructions."
   (and (match_code "mem")
        (match_test "th_memidx_legitimate_index_p (op, true)")))
+
+(define_register_constraint "th_f_fmv" "TARGET_XTHEADFMV ? FP_REGS : NO_REGS"
+  "A floating-point register for XTheadFmv.")
+
+(define_register_constraint "th_r_fmv" "TARGET_XTHEADFMV ? GR_REGS : NO_REGS"
+  "An integer register for XTheadFmv.")
+
+(define_constraint "u02"
+  "Unsigned immediate 2-bit value"
+  (and (match_code "const_int")
+       (match_test "ival < (1 << 2) && ival >= 0")))
+
+(define_constraint "u03"
+  "Unsigned immediate 3-bit value"
+  (and (match_code "const_int")
+       (match_test "ival < (1 << 3) && ival >= 0")))
+
+(define_constraint "u04"
+  "Unsigned immediate 4-bit value"
+  (and (match_code "const_int")
+       (match_test "ival < (1 << 4) && ival >= 0")))
+
+(define_constraint "u05"
+  "Unsigned immediate 5-bit value"
+  (and (match_code "const_int")
+       (match_test "ival < (1 << 5) && ival >= 0")))
+
+(define_constraint "u06"
+  "Unsigned immediate 6-bit value"
+  (and (match_code "const_int")
+       (match_test "ival < (1 << 6) && ival >= 0")))
+
+(define_constraint "D07"
+  "A constraint that matches the integers 2^(0...7)."
+  (and (match_code "const_int")
+       (match_test "(unsigned) exact_log2 (ival) <= 7")))
 
 ;; CORE-V Constraints
 (define_constraint "CV_alu_pow2"

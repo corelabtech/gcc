@@ -195,6 +195,9 @@ static const riscv_implied_info_t riscv_implied_info[] =
   {"ssstateen", "zicsr"},
   {"sstc", "zicsr"},
   {"zcmop", "zca"},
+  {"p", "zbpbo"},
+  {"p", "zpn"},
+  /* {"p", "zpsfoperand"}, */
 
   {NULL, NULL}
 };
@@ -392,6 +395,11 @@ static const struct riscv_ext_version riscv_ext_version_table[] =
   {"xtheadvector", ISA_SPEC_CLASS_NONE, 1, 0},
 
   {"xventanacondops", ISA_SPEC_CLASS_NONE, 1, 0},
+
+  /* P extension */
+  {"zpn", ISA_SPEC_CLASS_NONE, 0, 911},
+  {"zbpbo", ISA_SPEC_CLASS_NONE, 0, 911},
+  /* {"zpsfoperand", ISA_SPEC_CLASS_NONE, 0, 911}, */
 
   /* Terminate the list.  */
   {NULL, ISA_SPEC_CLASS_NONE, 0, 0}
@@ -1686,6 +1694,10 @@ static const riscv_ext_flag_table_t riscv_ext_flag_table[] =
   {"xtheadvector",  &gcc_options::x_target_flags, MASK_VECTOR},
 
   {"xventanacondops", &gcc_options::x_riscv_xventana_subext, MASK_XVENTANACONDOPS},
+
+  {"zpn", &gcc_options::x_riscv_rvp_subext, MASK_ZPN},
+  {"zbpbo", &gcc_options::x_riscv_rvp_subext, MASK_ZBPBO},
+  /* {"zpsfoperand", &gcc_options::x_riscv_rvp_subext, MASK_ZPSFOPERAND}, */
 
   {NULL, NULL, 0}
 };

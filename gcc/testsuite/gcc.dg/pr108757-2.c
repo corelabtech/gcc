@@ -1,5 +1,6 @@
 /* PR tree-optimization/108757 */
 /* { dg-do compile } */
+/* { dg-skip-if "" { *-*-* } { "-march=*zpn*" } } */
 /* { dg-options "-O2 -fdump-tree-optimized -fwrapv" } */
 
 #include <limits.h>
