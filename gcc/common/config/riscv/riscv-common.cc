@@ -1815,6 +1815,11 @@ static const riscv_ext_flag_table_t riscv_ext_flag_table[] =
   RISCV_EXT_FLAG_ENTRY ("xsfvqmaccdod",    x_riscv_sifive_subext, MASK_XSFVQMACCDOD),
   RISCV_EXT_FLAG_ENTRY ("xsfvfnrclipxfqf", x_riscv_sifive_subext, MASK_XSFVFNRCLIPXFQF),
 
+  RISCV_EXT_FLAG_ENTRY ("smrnmi", x_riscv_sm_subext, MASK_SMRNMI),
+  RISCV_EXT_FLAG_ENTRY ("smcntrpmf", x_riscv_sm_subext, MASK_SMCNTRPMF),
+  RISCV_EXT_FLAG_ENTRY ("smcsrind", x_riscv_sm_subext, MASK_SMCSRIND),
+  RISCV_EXT_FLAG_ENTRY ("smdbltrp", x_riscv_sm_subext, MASK_SMDBLTRP),
+
   RISCV_EXT_FLAG_ENTRY ("zpn", x_riscv_rvp_subext, MASK_ZPN),
   RISCV_EXT_FLAG_ENTRY ("zbpbo", x_riscv_rvp_subext, MASK_ZBPBO),
   /* RISCV_EXT_FLAG_ENTRY ("zpsfoperand", x_riscv_rvp_subext, MASK_ZPSFOPERAND), */

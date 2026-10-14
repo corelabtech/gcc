@@ -4980,6 +4980,8 @@ riscv_output_return ()
 	return "mret";
       else if (mode == SUPERVISOR_MODE)
 	return "sret";
+      else if (mode == RNMI_MODE)
+	return "mnret";
       else
 	return "uret";
     }
