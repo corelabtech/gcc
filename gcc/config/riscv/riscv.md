@@ -2844,7 +2844,8 @@
   [(set (match_operand:MOVE64 0 "nonimmediate_operand")
 	(match_operand:MOVE64 1 "move_operand"))]
   "reload_completed
-   && (riscv_split_64bit_move_p (operands[0], operands[1]) || TARGET_ZILSD)"
+   && (riscv_split_64bit_move_p (operands[0], operands[1])
+       || (TARGET_ZILSD && !TARGET_DOUBLE_FLOAT))"
   [(const_int 0)]
 {
   riscv_split_doubleword_move (operands[0], operands[1]);

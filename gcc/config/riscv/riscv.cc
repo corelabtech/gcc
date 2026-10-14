@@ -4684,6 +4684,19 @@ riscv_split_64bit_move_p (rtx dest, rtx src)
   if (TARGET_64BIT)
     return false;
 
+  /* Zilsd provides load/store with even-odd register pair. */
+  if (TARGET_ZILSD
+      && (((REG_P (dest) && MEM_P (src))
+	  || (MEM_P (dest) && REG_P (src)))))
+    {
+      rtx reg = REG_P (dest) ? dest : src;
+      unsigned regno = REGNO (reg);
+      /* GCC may still generating some load/store with odd-even reg pair
+	 because the ABI handling, but that's fine, just split that later.  */
+      if (GP_REG_P (regno))
+	return (regno < FIRST_PSEUDO_REGISTER) && ((regno % 2) != 0);
+    }
+
   /* There is no need to split if the FLI instruction in the `Zfa` extension can be used.  */
   if (satisfies_constraint_zfli (src))
     return false;
@@ -4695,12 +4708,6 @@ riscv_split_64bit_move_p (rtx dest, rtx src)
 	  || (FP_REG_RTX_P (dest) && MEM_P (src))
 	  || (FP_REG_RTX_P (src) && MEM_P (dest))
 	  || (FP_REG_RTX_P (dest) && src == CONST0_RTX (GET_MODE (src)))))
-    return false;
-
-  if (TARGET_ZILSD
-      && (reload_in_progress || reload_completed)
-      && ((GP_REG_RTX_P (src) && ((REGNO(src) % 2) == 0) && MEM_P (dest))
-	  || (GP_REG_RTX_P (dest) && ((REGNO(dest) % 2) == 0) && MEM_P (src))))
     return false;
 
   return true;
