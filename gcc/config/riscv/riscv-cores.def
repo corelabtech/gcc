@@ -108,6 +108,6 @@ RISCV_CORE("xiangshan-nanhu",      "rv64imafdc_zba_zbb_zbc_zbs_"
 			      "xiangshan-nanhu")
 
 RISCV_CORE("cl-cypress", "rv32imafdc_zicbom_zicsr_zicntr_zicond_zifencei_zihpm_zcb_zba_zbb_zbc_zbpbo0p911_zbs_zpn0p911",  "cl-cypress")
-RISCV_CORE("cl-juniper", "rv64imafdcv_zicbom_zicsr_zifencei_zcb_zba_zbb_zbc_zbs",  "cl-juniper")
+RISCV_CORE("cl-juniper", "rv32imafdv_zicbom_zicbop_zicboz_zicntr_zicond_zicsr_zifencei_zihpm_zilsd_zaamo_zalrsc_zca_zcb_zclsd_zcmp_zcmt_zba_zbb_zbc_zbs_zve32f_zve32x_zve64d_zve64f_zve64x_zvl128b_zvl32b_zvl64b_smcntrpmf_smcsrind_smdbltrp_smepmp_smrnmi_smstateen",  "cl-juniper")
 
 #undef RISCV_CORE
