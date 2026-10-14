@@ -6679,7 +6679,7 @@ riscv_handle_type_attribute (tree *node ATTRIBUTE_UNUSED, tree name, tree args,
 		       "argument to %qE attribute is not %<\"user\"%>, %<\"supervisor\"%>, "
 		       "%<\"machine\"%>, or %<\"rnmi\"%>", name);
 	      *no_add_attrs = true;
-	    } else if (riscv_fast_irq && !riscv_is_auto_stacking_supported(&global_options)) {
+	    }
 	  else if (riscv_fast_irq && !riscv_is_auto_stacking_supported(&global_options))
 	    {
 	      // Doesn't support fast interrupt
