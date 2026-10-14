@@ -481,10 +481,14 @@ Mask(SMCNTRPMF) Var(riscv_sm_subext)
 
 Mask(SMCSRIND) Var(riscv_sm_subext)
 
+Mask(SMDBLTRP) Var(riscv_sm_subext)
+
 TargetVariable
 int riscv_ss_subext
 
 Mask(SSCSRIND) Var(riscv_ss_subext)
+
+Mask(SSDBLTRP) Var(riscv_ss_subext)
 
 TargetVariable
 int riscv_ztso_subext
