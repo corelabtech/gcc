@@ -228,6 +228,8 @@ static const riscv_implied_info_t riscv_implied_info[] =
   {"sstc", "zicsr"},
   {"smrnmi", "zicsr"},
   {"smcntrpmf", "zicsr"},
+  {"sscsrind", "zicsr"},
+  {"smcsrind", "zicsr"},
 
   {"xsfvcp", "zve32x"},
 
@@ -411,11 +413,13 @@ static const struct riscv_ext_version riscv_ext_version_table[] =
   {"smstateen", ISA_SPEC_CLASS_NONE, 1, 0},
   {"smrnmi",    ISA_SPEC_CLASS_NONE, 1, 0},
   {"smcntrpmf", ISA_SPEC_CLASS_NONE, 1, 0},
+  {"smcsrind",  ISA_SPEC_CLASS_NONE, 1, 0},
 
   {"ssaia",     ISA_SPEC_CLASS_NONE, 1, 0},
   {"sscofpmf",  ISA_SPEC_CLASS_NONE, 1, 0},
   {"ssstateen", ISA_SPEC_CLASS_NONE, 1, 0},
   {"sstc",      ISA_SPEC_CLASS_NONE, 1, 0},
+  {"sscsrind",  ISA_SPEC_CLASS_NONE, 1, 0},
 
   {"svinval", ISA_SPEC_CLASS_NONE, 1, 0},
   {"svnapot", ISA_SPEC_CLASS_NONE, 1, 0},
