@@ -538,6 +538,15 @@ Mask(XSFVFNRCLIPXFQF) Var(riscv_sifive_subext)
 TargetVariable
 int riscv_fmv_priority = 0
 
+TargetVariable
+int riscv_rvp_subext
+
+Mask(ZPN) Var(riscv_rvp_subext)
+
+Mask(ZBPBO) Var(riscv_rvp_subext)
+
+Mask(ZPSFOPERAND) Var(riscv_rvp_subext)
+
 Enum
 Name(isa_spec_class) Type(enum riscv_isa_spec_class)
 Supported ISA specs (for use with the -misa-spec= option):
@@ -681,3 +690,7 @@ Specifies whether the fence.tso instruction should be used.
 mautovec-segment
 Target Integer Var(riscv_mautovec_segment) Init(1)
 Enable (default) or disable generation of vector segment load/store instructions.
+
+mfast-irq
+Target Var(riscv_fast_irq) Init(0)
+Enable fast interrupt.

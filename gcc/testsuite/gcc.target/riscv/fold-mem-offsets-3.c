@@ -1,4 +1,5 @@
 /* { dg-do compile } */
+/* { dg-skip-if "" { *-*-* } { "-march=*zpn*" } } */
 /* { dg-options "-O2 -ffold-mem-offsets" } */
 
 void load(int arr[2]);

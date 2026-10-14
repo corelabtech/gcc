@@ -229,6 +229,10 @@ static const riscv_implied_info_t riscv_implied_info[] =
 
   {"xsfvcp", "zve32x"},
 
+  {"p", "zbpbo"},
+  {"p", "zpn"},
+  /* {"p", "zpsfoperand"}, */
+
   {NULL, NULL}
 };
 
@@ -441,6 +445,11 @@ static const struct riscv_ext_version riscv_ext_version_table[] =
   {"xsfvqmaccqoq",    ISA_SPEC_CLASS_NONE, 1, 0},
   {"xsfvqmaccdod",    ISA_SPEC_CLASS_NONE, 1, 0},
   {"xsfvfnrclipxfqf", ISA_SPEC_CLASS_NONE, 1, 0},
+
+  /* P extension */
+  {"zpn", ISA_SPEC_CLASS_NONE, 0, 911},
+  {"zbpbo", ISA_SPEC_CLASS_NONE, 0, 911},
+  /* {"zpsfoperand", ISA_SPEC_CLASS_NONE, 0, 911}, */
 
   /* Terminate the list.  */
   {NULL, ISA_SPEC_CLASS_NONE, 0, 0}
@@ -1777,6 +1786,10 @@ static const riscv_ext_flag_table_t riscv_ext_flag_table[] =
   RISCV_EXT_FLAG_ENTRY ("xsfvqmaccqoq",    x_riscv_sifive_subext, MASK_XSFVQMACCQOQ),
   RISCV_EXT_FLAG_ENTRY ("xsfvqmaccdod",    x_riscv_sifive_subext, MASK_XSFVQMACCDOD),
   RISCV_EXT_FLAG_ENTRY ("xsfvfnrclipxfqf", x_riscv_sifive_subext, MASK_XSFVFNRCLIPXFQF),
+
+  RISCV_EXT_FLAG_ENTRY ("zpn", x_riscv_rvp_subext, MASK_ZPN),
+  RISCV_EXT_FLAG_ENTRY ("zbpbo", x_riscv_rvp_subext, MASK_ZBPBO),
+  /* RISCV_EXT_FLAG_ENTRY ("zpsfoperand", x_riscv_rvp_subext, MASK_ZPSFOPERAND), */
 
   {NULL, NULL, NULL, 0}
 };

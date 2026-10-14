@@ -232,6 +232,11 @@ riscv_cpu_cpp_builtins (cpp_reader *pfile)
       builtin_define ("__riscv_landing_pad_unlabeled");
     }
 
+  if (riscv_fast_irq)
+    {
+      builtin_define ("__riscv_fast_irq");
+    }
+
   const riscv_subset_list *subset_list = riscv_cmdline_subset_list ();
   if (!subset_list)
     return;

@@ -103,6 +103,71 @@
   ;; Stack Smash Protector
   UNSPEC_SSP_SET
   UNSPEC_SSP_TEST
+
+  ;; rvp
+  UNSPEC_KABS
+  UNSPEC_KADDW
+  UNSPEC_KSUBW
+  UNSPEC_KADDH
+  UNSPEC_KSUBH
+  UNSPEC_UKADDW
+  UNSPEC_UKSUBW
+  UNSPEC_UKADDH
+  UNSPEC_UKSUBH
+  UNSPEC_BITREV
+  UNSPEC_VEC_COMPARE
+  UNSPEC_KDMABB
+  UNSPEC_KDMABT
+  UNSPEC_KDMATT
+  UNSPEC_KHMBB
+  UNSPEC_KHMBT
+  UNSPEC_KHMTT
+  UNSPEC_KDMTT
+  UNSPEC_KDMBT
+  UNSPEC_KDMBB
+  UNSPEC_KHM
+  UNSPEC_KHMX
+  UNSPEC_KMMWU
+  UNSPEC_KMMW
+  UNSPEC_KSLRAW
+  UNSPEC_KSLRAWU
+  UNSPEC_PBSAD
+  UNSPEC_PBSADA
+  UNSPEC_RDOV
+  UNSPEC_CLIPS
+  UNSPEC_CLIPS_OV
+  UNSPEC_SMUL8
+  UNSPEC_SMULX8
+  UNSPEC_UMUL8
+  UNSPEC_UMULX8
+  UNSPEC_SMUL16
+  UNSPEC_SMULX16
+  UNSPEC_UMUL16
+  UNSPEC_UMULX16
+  UNSPEC_ROUND64
+  UNSPEC_BSWAP
+  UNSPEC_UCLIP
+  UNSPEC_UCLIP_OV
+  UNSPEC_KDMBB16
+  UNSPEC_KDMBT16
+  UNSPEC_KDMTT16
+  UNSPEC_KHMBB16
+  UNSPEC_KHMBT16
+  UNSPEC_KHMTT16
+  UNSPEC_SMAR64
+  UNSPEC_SMSR64
+  UNSPEC_UMAR64
+  UNSPEC_UMSR64
+  UNSPEC_KMAR64
+  UNSPEC_KMSR64
+  UNSPEC_UKMAR64
+  UNSPEC_UKMSR64
+  UNSPEC_MAXW
+  UNSPEC_MINW
+  UNSPEC_INSB
+  UNSPEC_FSR
+  UNSPEC_FSRW
+  UNSPEC_PACKU
 ])
 
 (define_c_enum "unspecv" [
@@ -152,6 +217,20 @@
   ;; XTheadInt unspec
   UNSPECV_XTHEADINT_PUSH
   UNSPECV_XTHEADINT_POP
+
+  ;; RVP
+  UNSPEC_CLROV
+
+  ;; CSR
+  UNSPEC_CSW
+  UNSPEC_READ_MEPC
+  UNSPEC_WRITE_MEPC
+  UNSPEC_READ_MCAUSE
+  UNSPEC_WRITE_MCAUSE
+  UNSPEC_READ_MEXINFO
+  UNSPEC_WRITE_MEXINFO
+  UNSPEC_CLEAR_MIE
+  UNSPEC_SET_MIE
 ])
 
 (define_constants
@@ -275,7 +354,8 @@
   V1HF,V2HF,V4HF,V8HF,V16HF,V32HF,V64HF,V128HF,V256HF,V512HF,V1024HF,V2048HF,
   V1SF,V2SF,V4SF,V8SF,V16SF,V32SF,V64SF,V128SF,V256SF,V512SF,V1024SF,
   V1DF,V2DF,V4DF,V8DF,V16DF,V32DF,V64DF,V128DF,V256DF,V512DF,
-  V1BI,V2BI,V4BI,V8BI,V16BI,V32BI,V64BI,V128BI,V256BI,V512BI,V1024BI,V2048BI,V4096BI"
+  V1BI,V2BI,V4BI,V8BI,V16BI,V32BI,V64BI,V128BI,V256BI,V512BI,V1024BI,V2048BI,V4096BI,
+  RVPV4QI,RVPV2HI,RVPV8QI,RVPV4HI,RVPV2SI,RVPV16QI,RVPV8HI,RVPV4SI,RVPV2DI"
   (const_string "unknown"))
 
 ;; True if the main data type is twice the size of a word.
@@ -460,6 +540,10 @@
 ;; vcompress    vector compress instruction
 ;; vmov         whole vector register move
 ;; vector       unknown vector instruction
+;; simd   simd instruction for p extension
+;; psimd  partial-simd data processing instructions
+;; dsp    instructions for increasing the DSP processing capabilities
+;; dsp64  as the same as dsp, but RV64P only
 ;; 17. Crypto Vector instructions
 ;; vandn        crypto vector bitwise and-not instructions
 ;; vbrev        crypto vector reverse bits in elements instructions
@@ -488,6 +572,13 @@
 ;; vsm4r        crypto vector SM4 Rounds instructions
 ;; vsm3me       crypto vector SM3 Message Expansion instructions
 ;; vsm3c        crypto vector SM3 Compression instructions
+;; maddr32      P extension multiple add instructions
+;; msubr32      P extension multiple sub instructions
+;; pmul         P extension multiple instructions
+;; simd         P extension SIMD instructions
+;; dsp          P extension DSP instructions
+;; dsp64        P extension DSP 64bit instructions
+;; csr_op       CSR operations
 ;; 18.Vector BF16 instrctions
 ;; vfncvtbf16  vector narrowing single floating-point to brain floating-point instruction
 ;; vfwcvtbf16  vector widening brain floating-point to single floating-point instruction
@@ -516,7 +607,8 @@
    vslideup,vslidedown,vislide1up,vislide1down,vfslide1up,vfslide1down,
    vgather,vcompress,vmov,vector,vandn,vbrev,vbrev8,vrev8,vclz,vctz,vcpop,vrol,vror,vwsll,
    vclmul,vclmulh,vghsh,vgmul,vaesef,vaesem,vaesdf,vaesdm,vaeskf1,vaeskf2,vaesz,
-   vsha2ms,vsha2ch,vsha2cl,vsm4k,vsm4r,vsm3me,vsm3c,vfncvtbf16,vfwcvtbf16,vfwmaccbf16"
+   vsha2ms,vsha2ch,vsha2cl,vsm4k,vsm4r,vsm3me,vsm3c,vfncvtbf16,vfwcvtbf16,vfwmaccbf16,
+   maddr32,msubr32,pmul,simd,psimd,dsp,dsp64,csr_op"
   (cond [(eq_attr "got" "load") (const_string "load")
 
 	 ;; If a doubleword move uses these expensive instructions,
@@ -669,7 +761,7 @@
 ;; Microarchitectures we know how to tune for.
 ;; Keep this in sync with enum riscv_microarchitecture.
 (define_attr "tune"
-  "generic,sifive_7,sifive_p400,sifive_p600,xiangshan,generic_ooo"
+  "generic,sifive_7,sifive_p400,sifive_p600,xiangshan,cl_cypress,cl_juniper,generic_ooo"
   (const (symbol_ref "((enum attr_tune) riscv_microarchitecture)")))
 
 ;; Describe a user's asm statement.
@@ -726,7 +818,19 @@
     }
 })
 
-(define_insn "adddi3"
+(define_expand "adddi3"
+  [(set (match_operand:DI          0 "register_operand" "=r,r")
+	(plus:DI (match_operand:DI 1 "register_operand" " r,r")
+		 (match_operand:DI 2 "arith_operand"    " r,I")))]
+  "TARGET_64BIT || TARGET_ZPSFOPERAND"
+  {
+    if (!TARGET_64BIT)
+      operands[2] = force_reg (DImode, operands[2]);
+  }
+  [(set_attr "type" "arith")
+   (set_attr "mode" "DI")])
+
+(define_insn "*adddi_rv64"
   [(set (match_operand:DI          0 "register_operand" "=r,r")
 	(plus:DI (match_operand:DI 1 "register_operand" " r,r")
 		 (match_operand:DI 2 "arith_operand"    " r,I")))]
@@ -928,8 +1032,8 @@
   [(set (match_operand:DI 0            "register_operand" "= r")
 	(minus:DI (match_operand:DI 1  "reg_or_0_operand" " rJ")
 		   (match_operand:DI 2 "register_operand" "  r")))]
-  "TARGET_64BIT"
-  "sub\t%0,%z1,%2"
+  "TARGET_64BIT || TARGET_ZPSFOPERAND"
+  { return TARGET_64BIT ? "sub\t%0,%z1,%2" : "sub64\t%0,%z1,%2"; }
   [(set_attr "type" "arith")
    (set_attr "mode" "DI")])
 
@@ -4803,6 +4907,196 @@
   [(set_attr "type" "move")
    (set_attr "mode" "<MODE>")])
 
+;; conditional scratch swap for 32-bit targets.
+;; operands[2]: 0: supervisor mode, 1: machine mode
+;; operands[3]: 0: xscratchcsw,     1: xscratchcswl
+(define_insn "riscv_csw_32"
+  [(set (match_operand:SI 0 "register_operand" "=r")
+    (unspec_volatile:SI [(match_operand:SI 1 "register_operand" "r")
+                (match_operand:SI 2 "const_int_operand" "n")
+                (match_operand:SI 3 "const_int_operand" "n")] UNSPEC_CSW))]
+  "TARGET_ZICSR && !TARGET_64BIT"
+{
+  int a = INTVAL(operands[2]);
+  int b = INTVAL(operands[3]);
+
+  if (a == 1 && b == 0)
+    return "csrrw\t%0, mscratchcsw, %1";
+  else if (a == 1 && b == 1)
+    return "csrrw\t%0, mscratchcswl, %1";
+  else
+    gcc_unreachable();
+}
+  [(set_attr "mode" "SI")
+   (set_attr "type" "csr_op")])
+
+;; conditional scratch swap for 64-bit targets.
+;; operands[2]: 0: supervisor mode, 1: machine mode
+;; operands[3]: 0: xscratchcsw,     1: xscratchcswl
+(define_insn "riscv_csw_64"
+  [(set (match_operand:DI 0 "register_operand" "=r")
+    (unspec_volatile:DI [(match_operand:DI 1 "register_operand" "r")
+                (match_operand:DI 2 "const_int_operand" "n")
+                (match_operand:DI 3 "const_int_operand" "n")] UNSPEC_CSW))]
+  "TARGET_ZICSR && TARGET_64BIT"
+{
+  int a = INTVAL(operands[2]);
+  int b = INTVAL(operands[3]);
+
+  if (a == 1 && b == 0)
+    return "csrrw\t%0, mscratchcsw, %1";
+  else if (a == 1 && b == 1)
+    return "csrrw\t%0, mscratchcswl, %1";
+  else
+    gcc_unreachable();
+}
+  [(set_attr "mode" "DI")
+   (set_attr "type" "csr_op")])
+
+;; Read mepc for 32-bit targets
+(define_insn "riscv_read_mepc_32"
+  [(unspec_volatile [(match_operand:SI 0 "register_operand" "r")] UNSPEC_READ_MEPC)]
+  "TARGET_ZICSR && !TARGET_64BIT"
+{
+    return "csrr\t%0, mepc\n";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Read mepc for 64-bit targets
+(define_insn "riscv_read_mepc_64"
+  [(unspec_volatile [(match_operand:DI 0 "register_operand" "r")] UNSPEC_READ_MEPC)]
+  "TARGET_ZICSR && TARGET_64BIT"
+{
+    return "csrr\t%0, mepc\n";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Write mepc for 32-bit targets
+(define_insn "riscv_write_mepc_32"
+  [(unspec_volatile [(match_operand:SI 0 "register_operand" "r")] UNSPEC_WRITE_MEPC)]
+  "TARGET_ZICSR && !TARGET_64BIT"
+{
+    return "csrw\tmepc, %0";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Write mepc for 64-bit targets
+(define_insn "riscv_write_mepc_64"
+  [(unspec_volatile [(match_operand:DI 0 "register_operand" "r")] UNSPEC_WRITE_MEPC)]
+  "TARGET_ZICSR && TARGET_64BIT"
+{
+    return "csrw\tmepc, %0";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Read mcause for 32-bit targets
+(define_insn "riscv_read_mcause_32"
+  [(unspec_volatile [(match_operand:SI 0 "register_operand" "r")] UNSPEC_READ_MCAUSE)]
+  "TARGET_ZICSR && !TARGET_64BIT"
+{
+    return "csrr\t%0, mcause\n";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Read mcause for 64-bit targets
+(define_insn "riscv_read_mcause_64"
+  [(unspec_volatile [(match_operand:DI 0 "register_operand" "r")] UNSPEC_READ_MCAUSE)]
+  "TARGET_ZICSR && TARGET_64BIT"
+{
+    return "csrr\t%0, mcause\n";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Write mcause for 32-bit targets
+(define_insn "riscv_write_mcause_32"
+  [(unspec_volatile [(match_operand:SI 0 "register_operand" "r")] UNSPEC_WRITE_MCAUSE)]
+  "TARGET_ZICSR && !TARGET_64BIT"
+{
+    return "csrw\tmcause, %0";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Write mcause for 64-bit targets
+(define_insn "riscv_write_mcause_64"
+  [(unspec_volatile [(match_operand:DI 0 "register_operand" "r")] UNSPEC_WRITE_MCAUSE)]
+  "TARGET_ZICSR && TARGET_64BIT"
+{
+    return "csrw\tmcause, %0";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Read mexinfo for 32-bit targets
+(define_insn "riscv_read_mexinfo_32"
+  [(unspec_volatile [(match_operand:SI 0 "register_operand" "r")] UNSPEC_READ_MEXINFO)]
+  "TARGET_ZICSR && !TARGET_64BIT"
+{
+    return "csrr\t%0, mexinfo\n";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Read mexinfo for 64-bit targets
+(define_insn "riscv_read_mexinfo_64"
+  [(unspec_volatile [(match_operand:DI 0 "register_operand" "r")] UNSPEC_READ_MEXINFO)]
+  "TARGET_ZICSR && TARGET_64BIT"
+{
+    return "csrr\t%0, mexinfo\n";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Write mexinfo for 32-bit targets
+(define_insn "riscv_write_mexinfo_32"
+  [(unspec_volatile [(match_operand:SI 0 "register_operand" "r")] UNSPEC_WRITE_MEXINFO)]
+  "TARGET_ZICSR && !TARGET_64BIT"
+{
+    return "csrw\tmexinfo, %0";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Write mexinfo for 64-bit targets
+(define_insn "riscv_write_mexinfo_64"
+  [(unspec_volatile [(match_operand:DI 0 "register_operand" "r")] UNSPEC_WRITE_MEXINFO)]
+  "TARGET_ZICSR && TARGET_64BIT"
+{
+    return "csrw\tmexinfo, %0";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Clear mstatus.mie for 32-bit targets
+(define_insn "riscv_clear_mie_32"
+  [(unspec_volatile [(match_operand:SI 0 "register_operand" "r")] UNSPEC_CLEAR_MIE)]
+  "TARGET_ZICSR && !TARGET_64BIT"
+{
+    return "csrci\tmstatus, 8\n";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Clear mstatus.mie for 64-bit targets
+(define_insn "riscv_clear_mie_64"
+  [(unspec_volatile [(match_operand:DI 0 "register_operand" "r")] UNSPEC_CLEAR_MIE)]
+  "TARGET_ZICSR && TARGET_64BIT"
+{
+    return "csrci\tmstatus, 8\n";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Set mstatus.mie for 32-bit targets
+(define_insn "riscv_set_mie_32"
+  [(unspec_volatile [(match_operand:SI 0 "register_operand" "r")] UNSPEC_SET_MIE)]
+  "TARGET_ZICSR && !TARGET_64BIT"
+{
+    return "csrsi\tmstatus, 8";
+}
+  [(set_attr "type" "csr_op")])
+
+;; Set mstatus.mie for 64-bit targets
+(define_insn "riscv_set_mie_64"
+  [(unspec_volatile [(match_operand:DI 0 "register_operand" "r")] UNSPEC_SET_MIE)]
+  "TARGET_ZICSR && TARGET_64BIT"
+{
+    return "csrsi\tmstatus, 8";
+}
+  [(set_attr "type" "csr_op")])
+
 (include "bitmanip.md")
 (include "crypto.md")
 (include "sync.md")
@@ -4824,4 +5118,7 @@
 (include "sfb.md")
 (include "zc.md")
 (include "corev.md")
+(include "rvp.md")
 (include "xiangshan.md")
+(include "cl-cypress.md")
+(include "cl-juniper.md")

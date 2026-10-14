@@ -2,6 +2,7 @@
    with stride in inconsistent positions.  */
 
 /* { dg-do compile } */
+/* { dg-skip-if "" { *-*-* } { "-march=*zpn*" } } */
 /* { dg-options "-O3 -fdump-tree-optimized" } */
 
 int

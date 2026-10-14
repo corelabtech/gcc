@@ -179,6 +179,7 @@ extern bool riscv_vector_float_type_p (const_tree type);
 extern void generate_reflecting_code_using_brev (rtx *);
 extern void expand_crc_using_clmul (scalar_mode, scalar_mode, rtx *);
 extern void expand_reversed_crc_using_clmul (scalar_mode, scalar_mode, rtx *);
+extern bool riscv_rvp_support_vector_mode_p (machine_mode mode);
 
 /* Routines implemented in riscv-c.cc.  */
 void riscv_cpu_cpp_builtins (cpp_reader *);
